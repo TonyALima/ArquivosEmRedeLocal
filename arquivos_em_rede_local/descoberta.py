@@ -33,17 +33,17 @@ class Descoberta:
         self.dispositivos = []
         self.running_discovery = False
         self.running_comunication = False
-        self.discovery_listener_thread = threading.Thread(target=self.listen_discovery, daemon=True)
-        self.comunication_thread = threading.Thread(target=self.start_comunication, daemon=True)
+        self.discovery_listener_thread = threading.Thread(target=self.listen_for_discovery_messages, daemon=True)
+        self.comunication_thread = threading.Thread(target=self.initiate_communication, daemon=True)
 
     def __del__(self):
         """
         Finaliza a classe Descoberta, parando a descoberta e a comunicação.
         """
-        self.stop_discovery()
-        self.stop_comunication()
+        self.stop_discovery_listener()
+        self.stop_communication()
 
-    def stop_discovery(self):
+    def stop_discovery_listener(self):
         """
         Para a descoberta de dispositivos.
         """
@@ -51,7 +51,7 @@ class Descoberta:
             self.running_discovery = False
             self.discovery_listener_thread.join()
 
-    def stop_comunication(self):
+    def stop_communication(self):
         """
         Para a comunicação com dispositivos.
         """
@@ -59,7 +59,7 @@ class Descoberta:
             self.running_comunication = False
             self.comunication_thread.join()
 
-    def send_discovery(self):
+    def broadcast_discovery_message(self):
         """
         Envia uma mensagem de descoberta para a rede local.
         """
@@ -69,7 +69,7 @@ class Descoberta:
         sock.sendto(mensagem, ('<broadcast>', self.discovery_port))
         sock.close()
 
-    def listen_discovery(self):
+    def listen_for_discovery_messages(self):
         """
         Escuta mensagens de descoberta na rede local.
         """
@@ -89,7 +89,7 @@ class Descoberta:
                 continue
         sock.close()
 
-    def send_response(self, sock: socket.socket):
+    def send_discovery_response(self, sock: socket.socket):
         """
         Envia uma resposta para um dispositivo que enviou uma mensagem de descoberta.
 
@@ -102,7 +102,7 @@ class Descoberta:
         except Exception as e:
             print(f"Erro ao enviar resposta: {e}")
 
-    def recive_name(self, sock: socket.socket):
+    def receive_device_name(self, sock: socket.socket):
         """
         Recebe o nome de um dispositivo.
 
@@ -123,7 +123,7 @@ class Descoberta:
             return None
         return None
 
-    def send_my_name(self, sock: socket.socket):
+    def send_device_name(self, sock: socket.socket):
         """
         Envia o nome do dispositivo para outro dispositivo.
 
@@ -136,7 +136,7 @@ class Descoberta:
         except Exception as e:
             print(f"Erro ao enviar nome: {e}")
 
-    def start_comunication(self):
+    def initiate_communication(self):
         """
         Inicia a comunicação com dispositivos descobertos.
         """
@@ -145,10 +145,10 @@ class Descoberta:
             if not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos):
                 try:
                     sock = socket.create_connection((ip, self.comunication_port))
-                    self.send_response(sock)
-                    name = self.recive_name(sock)
+                    self.send_discovery_response(sock)
+                    name = self.receive_device_name(sock)
                     if name:
-                        self.send_my_name(sock)
+                        self.send_device_name(sock)
                         self.dispositivos.append({
                             'ip': ip,
                             'name': name
@@ -159,7 +159,7 @@ class Descoberta:
             self.descobertas.remove(ip)
         self.running_comunication = False
 
-    def handle_response(self, ip, sock: socket.socket):
+    def handle_discovery_response(self, ip, sock: socket.socket):
         """
         Trata a resposta de um dispositivo descoberto.
 
@@ -168,8 +168,8 @@ class Descoberta:
             sock (socket.socket): Socket de comunicação.
         """
         if not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos):
-            self.send_my_name(sock)
-            name = self.recive_name(sock)
+            self.send_device_name(sock)
+            name = self.receive_device_name(sock)
             if name:
                 self.dispositivos.append({
                     'ip': ip,
@@ -177,7 +177,7 @@ class Descoberta:
                 })
         sock.close()
 
-    def listen_response(self):
+    def listen_for_responses(self):
         """
         Escuta respostas de dispositivos na rede local.
         """
@@ -190,7 +190,7 @@ class Descoberta:
                 conn, addr = sock.accept()
                 data = conn.recv(1024)
                 if data.decode() == 'I am here!':
-                    t = threading.Thread(target=self.handle_response, args=(addr[0], conn,), daemon=True)
+                    t = threading.Thread(target=self.handle_discovery_response, args=(addr[0], conn,), daemon=True)
                     t.start()
                     threads.append(t)
             except socket.timeout:
@@ -199,19 +199,19 @@ class Descoberta:
             t.join()
         sock.close()
 
-    def start_discovery(self):
+    def start_discovery_process(self):
         """
         Inicia o processo de descoberta de dispositivos na rede local.
         """
         # Envia a mensagem de descoberta
-        self.send_discovery()
-        self.listen_response()
+        self.broadcast_discovery_message()
+        self.listen_for_responses()
         
         # Inicia a escuta de outras descobertas em uma thread separada
         self.discovery_listener_thread.start()
 
     
-    def get_dispositivos(self):
+    def get_connected_devices(self):
         """
         Retorna a lista de dispositivos conectados.
 

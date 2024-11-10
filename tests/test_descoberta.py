@@ -6,25 +6,31 @@ import threading
 from arquivos_em_rede_local.descoberta import Descoberta
 
 class TestDescoberta(unittest.TestCase):
-    def test_send_discovery(self):
+    def test_broadcast_discovery_message(self):
+        """
+        Testa o envio de uma mensagem de descoberta via UDP.
+        """
         porta_udp = 9999
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(('', porta_udp))
         sock.settimeout(2)
 
         d = Descoberta("Test", porta_udp)
-        d.send_discovery()
+        d.broadcast_discovery_message()
 
         # Tenta receber a mensagem de descoberta
         try:
-            data, addr = sock.recvfrom(1024)
+            data, _ = sock.recvfrom(1024)
             self.assertEqual(data.decode(), 'Discovery: Who is out there?')
         except socket.timeout:
             self.fail("Não enviou a mensagem de descoberta")
 
         sock.close()
     
-    def test_listen_discovery(self):
+    def test_listen_for_discovery_messages(self):
+        """
+        Testa a escuta de mensagens de descoberta via UDP.
+        """
         porta_udp = 9998
         ip = '127.0.0.1'
 
@@ -32,7 +38,7 @@ class TestDescoberta(unittest.TestCase):
         # mock comunication
         d.running_comunication = True
 
-        t = threading.Thread(target=d.listen_discovery, daemon=True)
+        t = threading.Thread(target=d.listen_for_discovery_messages, daemon=True)
         t.start()
 
         # Envia a mensagem de descoberta
@@ -48,6 +54,9 @@ class TestDescoberta(unittest.TestCase):
         self.assertTrue(ip in d.descobertas)
 
     def create_connected_sockets(port):
+        """
+        Cria um par de sockets conectados para comunicação TCP.
+        """
         server_sock = socket.create_server(('127.0.0.1', port))
 
         client_sock = socket.create_connection(('127.0.0.1', port))
@@ -56,13 +65,16 @@ class TestDescoberta(unittest.TestCase):
         server_sock.close()
         return conn, client_sock
 
-    def test_send_my_name(self):
+    def test_send_device_name(self):
+        """
+        Testa o envio do nome via TCP.
+        """
         porta_tcp = 9997
 
         d = Descoberta("Test")
         server_sock, client_sock = TestDescoberta.create_connected_sockets(porta_tcp)
         
-        threading.Thread(target=d.send_my_name, args=(server_sock,), daemon=True).start()
+        threading.Thread(target=d.send_device_name, args=(server_sock,), daemon=True).start()
 
         message = ''
 
@@ -74,7 +86,10 @@ class TestDescoberta(unittest.TestCase):
         client_sock.close()
         self.assertEqual(message, 'My name is Test')
 
-    def test_recive_name(self):
+    def test_receive_device_name(self):
+        """
+        Testa o recebimento do nome via TCP.
+        """
         porta_tcp = 9996
 
         d = Descoberta("Test")
@@ -82,7 +97,7 @@ class TestDescoberta(unittest.TestCase):
 
         result = []
         def f(r):
-            r.append(d.recive_name(client_sock)) 
+            r.append(d.receive_device_name(client_sock)) 
 
         t1 = threading.Thread(target=f, args=(result,), daemon=True)
         t1.start()
@@ -97,14 +112,17 @@ class TestDescoberta(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0], 'TestToo')
 
-    def test_handle_response(self):
+    def test_handle_discovery_response(self):
+        """
+        Testa o manuseio de respostas via TCP.
+        """
         porta_tcp = 9995
         ip = '127.0.0.1'
 
         d = Descoberta("Test")
         server_sock, client_sock = TestDescoberta.create_connected_sockets(porta_tcp)
         
-        t = threading.Thread(target=d.handle_response, args=(ip, server_sock,),daemon=True)
+        t = threading.Thread(target=d.handle_discovery_response, args=(ip, server_sock,),daemon=True)
         t.start()
 
         recived_message = ''
@@ -121,14 +139,17 @@ class TestDescoberta(unittest.TestCase):
         client_sock.close()
 
         self.assertEqual(recived_message, 'My name is Test')
-        self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d.get_dispositivos())) 
+        self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d.get_connected_devices())) 
 
-    def test_listen_response(self):
+    def test_listen_for_responses(self):
+        """
+        Testa a escuta de respostas via TCP.
+        """
         porta_tcp = 9994
         ip = '127.0.0.1'
 
         d = Descoberta("Test", comunication_port=porta_tcp)
-        t = threading.Thread(target=d.listen_response, daemon=True)
+        t = threading.Thread(target=d.listen_for_responses, daemon=True)
         t.start()
         client_sock = socket.create_connection((ip, porta_tcp))
 
@@ -149,9 +170,12 @@ class TestDescoberta(unittest.TestCase):
         client_sock.close()
 
         self.assertEqual(recived_message, 'My name is Test')
-        self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d.get_dispositivos())) 
+        self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d.get_connected_devices())) 
 
-    def test_start_comunication(self):
+    def test_initiate_communication(self):
+        """
+        Testa o início da comunicação via TCP.
+        """
         porta_tcp = 9992
         ip = '127.0.0.1'
 
@@ -159,7 +183,7 @@ class TestDescoberta(unittest.TestCase):
         d.descobertas.append(ip)
 
         server_sock = socket.create_server(('', porta_tcp))
-        t = threading.Thread(target=d.start_comunication, daemon=True)
+        t = threading.Thread(target=d.initiate_communication, daemon=True)
         t.start()
         conn, _ = server_sock.accept()
         server_sock.close()
@@ -184,7 +208,7 @@ class TestDescoberta(unittest.TestCase):
 
         self.assertEqual(recived_message, 'I am here!')
         self.assertEqual(recived_name, 'My name is TestToo')
-        self.assertTrue(any(dispositivo['name'] == 'Test' for dispositivo in d.get_dispositivos())) 
+        self.assertTrue(any(dispositivo['name'] == 'Test' for dispositivo in d.get_connected_devices())) 
 
 if __name__ == '__main__':
     unittest.main()
