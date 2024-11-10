@@ -176,7 +176,7 @@ class TestDescoberta(unittest.TestCase):
         """
         Testa o início da comunicação via TCP.
         """
-        porta_tcp = 9992
+        porta_tcp = 9993
         ip = '127.0.0.1'
 
         d = Descoberta("TestToo", comunication_port=porta_tcp)
@@ -209,6 +209,24 @@ class TestDescoberta(unittest.TestCase):
         self.assertEqual(recived_message, 'I am here!')
         self.assertEqual(recived_name, 'My name is TestToo')
         self.assertTrue(any(dispositivo['name'] == 'Test' for dispositivo in d.get_connected_devices())) 
+
+    def test_connect_two_instances(self):
+        """
+        Testa a conexão entre duas instâncias.
+        """
+        porta_udp = 9992
+        porta_tcp = 9991
+        
+        d1 = Descoberta("Test", discovery_port=porta_udp, comunication_port=porta_tcp)
+        d2 = Descoberta("TestToo", discovery_port=porta_udp, comunication_port=porta_tcp)
+
+        d1.start_discovery_process()
+
+        d2.broadcast_discovery_message()
+        d2.listen_for_responses()
+
+        self.assertTrue(any(dispositivo['name'] == 'Test' for dispositivo in d2.get_connected_devices()))
+        self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d1.get_connected_devices()))
 
 if __name__ == '__main__':
     unittest.main()
