@@ -35,11 +35,13 @@ class Descoberta:
         self.running_comunication = False
         self.discovery_listener_thread = threading.Thread(target=self.listen_for_discovery_messages, daemon=True)
         self.comunication_thread = threading.Thread(target=self.initiate_communication, daemon=True)
+        self.listen_for_responses_thread = threading.Thread(target=self.listen_for_responses, daemon=True)
 
     def __del__(self):
         """
         Finaliza a classe Descoberta, parando a descoberta e a comunicação.
         """
+        self.listen_for_responses_thread.join()
         self.stop_discovery_listener()
         self.stop_communication()
 
@@ -205,7 +207,7 @@ class Descoberta:
         """
         # Envia a mensagem de descoberta
         self.broadcast_discovery_message()
-        self.listen_for_responses()
+        self.listen_for_responses_thread.start()
         
         # Inicia a escuta de outras descobertas em uma thread separada
         self.discovery_listener_thread.start()
