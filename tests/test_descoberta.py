@@ -220,8 +220,8 @@ class TestDescoberta(unittest.TestCase):
         d1 = Descoberta("Test", discovery_port=porta_udp, comunication_port=porta_tcp)
         d2 = Descoberta("TestToo", discovery_port=porta_udp, comunication_port=porta_tcp)
 
-        d1.start_discovery_process()
-
+        d1.discovery_listener_thread.start()
+        sleep(.1)
         d2.broadcast_discovery_message()
         d2.listen_for_responses()
 
