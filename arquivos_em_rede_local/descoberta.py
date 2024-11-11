@@ -41,7 +41,8 @@ class Descoberta:
         """
         Finaliza a classe Descoberta, parando a descoberta e a comunicação.
         """
-        self.listen_for_responses_thread.join()
+        if self.listen_for_responses_thread.is_alive():
+            self.listen_for_responses_thread.join()
         self.stop_discovery_listener()
         self.stop_communication()
 
