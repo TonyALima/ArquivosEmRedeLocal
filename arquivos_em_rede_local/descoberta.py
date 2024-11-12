@@ -29,6 +29,7 @@ class Descoberta:
         self.my_name = my_name
         self.discovery_port = discovery_port
         self.comunication_port = comunication_port
+        self.local_ip = self.get_local_ip()
         self.descobertas = []
         self.dispositivos = []
         self.running_discovery = False
@@ -61,6 +62,24 @@ class Descoberta:
         if self.running_comunication:
             self.running_comunication = False
             self.comunication_thread.join()
+
+    def get_local_ip(self):
+        """
+        Obtém o endereço IP local do dispositivo.
+
+        Returns:
+            str: Endereço IP local.
+        """
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # Não precisa se conectar de fato, apenas obter o IP local
+            s.connect(('10.254.254.254', 1))
+            ip = s.getsockname()[0]
+        except Exception:
+            ip = '127.0.0.1'
+        finally:
+            s.close()
+        return ip
 
     def broadcast_discovery_message(self):
         """
@@ -145,22 +164,23 @@ class Descoberta:
         """
         self.running_comunication = True
         for ip in self.descobertas:
-            if not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos):
+            if (not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos)
+                and ip != self.local_ip):
                 try:
-                    sock = socket.create_connection((ip, self.comunication_port))
-                    self.send_discovery_response(sock)
-                    name = self.receive_device_name(sock)
-                    if name:
-                        self.send_device_name(sock)
-                        self.dispositivos.append({
-                            'ip': ip,
-                            'name': name
-                        })
-                    sock.close()
+                    with socket.create_connection((ip, self.comunication_port)) as sock:
+                        self.send_discovery_response(sock)
+                        name = self.receive_device_name(sock)
+                        if name:
+                            self.send_device_name(sock)
+                            self.dispositivos.append({
+                                'ip': ip,
+                                'name': name
+                            })
                 except Exception as e:
                     print(f"Erro conectar com {ip}: {e}")
             self.descobertas.remove(ip)
         self.running_comunication = False
+        self.comunication_thread = threading.Thread(target=self.initiate_communication, daemon=True)
 
     def handle_discovery_response(self, ip, sock: socket.socket):
         """

@@ -228,5 +228,13 @@ class TestDescoberta(unittest.TestCase):
         self.assertTrue(any(dispositivo['name'] == 'Test' for dispositivo in d2.get_connected_devices()))
         self.assertTrue(any(dispositivo['name'] == 'TestToo' for dispositivo in d1.get_connected_devices()))
 
+    def test_get_local_ip(self):
+        """
+        Testa a obtenção do endereço IP local.
+        """
+        d = Descoberta("Test")
+        ip = d.get_local_ip()
+        self.assertTrue(ip.startswith('192.168.'))
+
 if __name__ == '__main__':
     unittest.main()
