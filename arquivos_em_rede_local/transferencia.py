@@ -1,43 +1,64 @@
 import socket
+import threading
 
 class Transferencia:
-    def __init__(self, device, transfer_port=230009):
-        self.device_ip = device['ip']
-        self.device_name = device['name']
-        self.transfer_port = transfer_port  # You can choose any port number
+    def __init__(self, transfer_port=230009):
+        self.transfer_port = transfer_port
+        self.running_listener = True
+        self.listen_to_incoming_requests_thread = threading.Thread(target=self._listen_to_incoming_requests, daemon=True)
+        self.listen_to_incoming_requests_thread.start()
 
-    def send(self, file_path):
-        response = ""
-        if self._request_send_authorization():
-            try:
-                with socket.create_connection((self.device_ip, self.transfer_port)) as s:
-                    with open(file_path, 'rb') as file:
-                        data = file.read()
-                        s.sendall(data)
-                        response = "File sent successfully"
-            except Exception as e:
-                response = "Failed to send file: " + str(e)
-        else:
-            response = "Failed to send file: Authorization denied"
-        return response
+    def __del__(self):
+        self.running_listener = False
+        if self.listen_to_incoming_requests_thread.is_alive():
+            self.listen_to_incoming_requests_thread.join()
 
-    def _request_send_authorization(self):
-        # Function to request authorization to send a file
-        return True
+    def send(self, file_path, device_ip):
+        try:
+            with open(file_path, 'rb') as file:
+                data = file.read()
+        except Exception as e:
+            return "Failed to get file: " + str(e)
 
-    def _receive_confirmation(self):
-        # Function to receive confirmation for sending a file
-        pass
+        with socket.create_connection((device_ip, self.transfer_port)) as sock:
+            if self._request_send_authorization(sock, file_path):
+                sock.sendall(data)
+                sock.sendall(b'End of file')
+                return "File sent successfully"
+            else:
+                return "Failed to send file: Authorization denied"
 
-    def _receive_send_request(self):
-        # Function to receive a request to send a file
-        pass
+    def _request_send_authorization(self, sock, file_path):
+        file_name = file_path.split('/')[-1]
+        message = f"SEND {file_name}"
+        sock.sendall(message.encode())
+        response = sock.recv(1024).decode()
+        if response == "OK":
+            return True
+        return False
 
-    def _receive_and_save_file(self, save_path):
-        # Function to receive and save a file
-        pass
+    def _listen_to_incoming_requests(self):
+        with socket.create_server(('', self.transfer_port)) as sock:
+            sock.settimeout(1)
+            while self.running_listener:
+                try:
+                    conn, _ = sock.accept()
+                    data = conn.recv(1024)
+                    if data.decode().startswith('SEND'):
+                        file_name = data.decode().split(' ')[1]
+                        conn.sendall("OK".encode())
+                        self._receive_and_save_file(conn, file_name)
+                except socket.timeout:
+                    continue
+
+    def _receive_and_save_file(self, conn: socket.socket, file_name):
+        with open(file_name, 'wb') as file:
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                file.write(data)
 
 # Example usage:
-# device = {'ip': '192.168.1.2', 'name': 'DeviceName'}
-# transferencia = Transferencia(device)
-# transferencia.send('/path/to/file')
+# transferencia = Transferencia()
+# transferencia.send('/path/to/file', '192.168.1.2')

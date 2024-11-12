@@ -102,9 +102,9 @@ class Descoberta:
         while self.running_discovery:
             sock.settimeout(1)
             try:
-                dados, endereco = sock.recvfrom(1024)
-                if dados.decode() == 'Discovery: Who is out there?':
-                    self.descobertas.append(endereco[0])
+                data, addr = sock.recvfrom(1024)
+                if data.decode() == 'Discovery: Who is out there?':
+                    self.descobertas.append(addr[0])
                     if not self.running_comunication:
                         self.comunication_thread.start()
             except socket.timeout:
