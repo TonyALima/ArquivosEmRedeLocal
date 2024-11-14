@@ -47,8 +47,8 @@ class Transferencia:
                 try:
                     conn, addr = sock.accept()
                     data = conn.recv(1024)
-                    if data.decode().startswith('SEND'):
-                        file_name = data.decode().split(' ')[1]
+                    if data.decode().startswith('SEND '):
+                        file_name = data.decode()[len('SEND '):]
                         if self.get_user_authorization(addr[0], file_name):
                             conn.sendall("OK".encode())
                             self._receive_and_save_file(conn, file_name)
