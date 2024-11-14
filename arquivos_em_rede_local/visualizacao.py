@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog, messagebox
 
-from descoberta import Descoberta
-from transferencia import Transferencia
+from arquivos_em_rede_local.descoberta import Descoberta
+from arquivos_em_rede_local.transferencia import Transferencia
 
 class InterfaceGrafica:
     def __init__(self, name: str):
@@ -50,18 +50,10 @@ class InterfaceGrafica:
         self.descoberta.reload()
         self.update_tree_and_buttons()
 
-    def solicitar_envio_arquivo(self, dispositivo, file_name):
-        resposta = messagebox.askyesno("Solicitação de Envio", f"{dispositivo['name']} ({dispositivo['ip']}) deseja enviar {file_name} para você. Deseja aceitar?")
-        if resposta:
-            print(f"Arquivo aceito de {dispositivo['name']} ({dispositivo['ip']})")
-        else:
-            print(f"Arquivo recusado de {dispositivo['name']} ({dispositivo['ip']})")
+    def solicitar_envio_arquivo(self, ip, file_name):
+        dispositivo = next((d for d in self.descoberta.get_connected_devices() if d['ip'] == ip), "")
+        return messagebox.askyesno("Solicitação de Envio", f"{dispositivo['name']} ({dispositivo['ip']}) deseja enviar {file_name} para você. Deseja aceitar?")
 
     def run(self):
         self.root.mainloop()
-
-# Exemplo de uso
-if __name__ == "__main__":
-    app = InterfaceGrafica("Test")
-    app.run()
 
