@@ -37,6 +37,7 @@ class Descoberta:
         self.discovery_listener_thread = threading.Thread(target=self.listen_for_discovery_messages, daemon=True)
         self.comunication_thread = threading.Thread(target=self.initiate_communication, daemon=True)
         self.listen_for_responses_thread = threading.Thread(target=self.listen_for_responses, daemon=True)
+        self.verify_devices_alive_thread = threading.Thread(target=self.verify_devices_alive, daemon=True)
 
     def __del__(self):
         """
@@ -85,10 +86,11 @@ class Descoberta:
         """
         Envia uma mensagem de descoberta para a rede local.
         """
-        mensagem = b'Discovery: Who is out there?'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.sendto(mensagem, ('<broadcast>', self.discovery_port))
+        for _ in range(3):
+            mensagem = b'Discovery: Who is out there?'
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.sendto(mensagem, ('<broadcast>', self.discovery_port))
         sock.close()
 
     def listen_for_discovery_messages(self):
@@ -233,7 +235,23 @@ class Descoberta:
         # Inicia a escuta de outras descobertas em uma thread separada
         self.discovery_listener_thread.start()
 
-    
+    def reload(self):
+        """
+        Reenvia a mensagem de descoberta para tentar descobrir novos dispositivos.
+        """
+
+        
+        if not self.running_discovery:
+            self.start_discovery_process()
+        elif not self.listen_for_responses_thread.is_alive():
+            self.broadcast_discovery_message()
+            self.listen_for_responses_thread = threading.Thread(target=self.listen_for_responses, daemon=True)
+            self.listen_for_responses_thread.start()
+        
+        if not self.verify_devices_alive_thread.is_alive():
+            self.verify_devices_alive_thread = threading.Thread(target=self.verify_devices_alive, daemon=True)
+            self.verify_devices_alive_thread.start()
+
     def get_connected_devices(self):
         """
         Retorna a lista de dispositivos conectados.
@@ -242,3 +260,25 @@ class Descoberta:
             list: Lista de dispositivos conectados.
         """
         return self.dispositivos
+
+    def verify_devices_alive(self):
+        """
+        Envia uma mensagem para todos os dispositivos descobertos e verifica se ainda estão na rede.
+        """
+        message = "Hello, are you there?"
+        def send_message(dispositivo):
+            try:
+                with socket.create_connection((dispositivo['ip'], self.comunication_port), timeout=5) as sock:
+                    sock.sendall(message.encode())
+                    response = sock.recv(1024)
+                    if not response:
+                        self.dispositivos.remove(dispositivo)
+            except Exception:
+                self.dispositivos.remove(dispositivo)
+        threads = []
+        for dispositivo in self.dispositivos:
+            t = threading.Thread(target=send_message, args=(dispositivo,), daemon=True)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
