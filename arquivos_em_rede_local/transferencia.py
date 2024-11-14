@@ -48,16 +48,26 @@ class Transferencia:
                         file_name = data.decode().split(' ')[1]
                         conn.sendall("OK".encode())
                         self._receive_and_save_file(conn, file_name)
+                    conn.close()
                 except socket.timeout:
                     continue
 
     def _receive_and_save_file(self, conn: socket.socket, file_name):
-        with open(file_name, 'wb') as file:
-            while True:
-                data = conn.recv(1024)
-                if not data:
+        data = b''
+        conn.settimeout(1)
+        while True:
+            try:
+                data += conn.recv(1024)
+                if data.endswith(b'End of file'):
+                    data = data[:-len(b'End of file')]
                     break
+            except socket.timeout:
+                break
+        if data:
+            with open(file_name, 'wb') as file:
                 file.write(data)
+        else:
+            print("Failed to receive file")
 
 # Example usage:
 # transferencia = Transferencia()
