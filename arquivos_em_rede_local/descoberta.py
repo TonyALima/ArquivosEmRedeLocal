@@ -166,18 +166,22 @@ class Descoberta:
         """
         self.running_comunication = True
         for ip in self.descobertas:
-            if (not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos)
-                and ip != self.local_ip):
+            if ip != self.local_ip:
                 try:
                     with socket.create_connection((ip, self.comunication_port)) as sock:
                         self.send_discovery_response(sock)
                         name = self.receive_device_name(sock)
                         if name:
                             self.send_device_name(sock)
-                            self.dispositivos.append({
-                                'ip': ip,
-                                'name': name
-                            })
+                            if not any(dispositivo['ip'] == ip for dispositivo in self.dispositivos):
+                                self.dispositivos.append({
+                                    'ip': ip,
+                                    'name': name
+                                })
+                            else:
+                                for dispositivo in self.dispositivos:
+                                    if dispositivo['ip'] == ip:
+                                        dispositivo['name'] = name
                 except Exception as e:
                     print(f"Erro conectar com {ip}: {e}")
             self.descobertas.remove(ip)
