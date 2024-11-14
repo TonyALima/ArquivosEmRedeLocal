@@ -1,5 +1,6 @@
 import socket
 import threading
+from time import sleep
 
 class Transferencia:
     def __init__(self, get_user_authorization, transfer_port=23009):
@@ -34,6 +35,7 @@ class Transferencia:
         message = f"SEND {file_name}"
         sock.sendall(message.encode())
         sock.settimeout(60)
+        sleep(1)
         try:
             response = sock.recv(1024).decode()
             return response == "OK"
