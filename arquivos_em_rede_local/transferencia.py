@@ -2,11 +2,12 @@ import socket
 import threading
 
 class Transferencia:
-    def __init__(self, transfer_port=230009):
+    def __init__(self, get_user_authorization, transfer_port=23009):
         self.transfer_port = transfer_port
         self.running_listener = True
         self.listen_to_incoming_requests_thread = threading.Thread(target=self._listen_to_incoming_requests, daemon=True)
         self.listen_to_incoming_requests_thread.start()
+        self.get_user_authorization = get_user_authorization
 
     def __del__(self):
         self.running_listener = False
@@ -28,14 +29,16 @@ class Transferencia:
             else:
                 return "Failed to send file: Authorization denied"
 
-    def _request_send_authorization(self, sock, file_path):
+    def _request_send_authorization(self, sock: socket.socket, file_path):
         file_name = file_path.split('/')[-1]
         message = f"SEND {file_name}"
         sock.sendall(message.encode())
-        response = sock.recv(1024).decode()
-        if response == "OK":
-            return True
-        return False
+        sock.settimeout(60)
+        try:
+            response = sock.recv(1024).decode()
+            return response == "OK"
+        except Exception:
+            return False
 
     def _listen_to_incoming_requests(self):
         with socket.create_server(('', self.transfer_port)) as sock:
@@ -46,8 +49,11 @@ class Transferencia:
                     data = conn.recv(1024)
                     if data.decode().startswith('SEND'):
                         file_name = data.decode().split(' ')[1]
-                        conn.sendall("OK".encode())
-                        self._receive_and_save_file(conn, file_name)
+                        if self.get_user_authorization():
+                            conn.sendall("OK".encode())
+                            self._receive_and_save_file(conn, file_name)
+                        else:
+                            conn.sendall("NO".encode())
                     conn.close()
                 except socket.timeout:
                     continue
