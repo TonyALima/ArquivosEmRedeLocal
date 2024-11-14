@@ -282,3 +282,18 @@ class Descoberta:
             threads.append(t)
         for t in threads:
             t.join()
+
+    def get_device_by_ip(self, ip):
+        """
+        Retorna um dispositivo da lista de dispositivos conectados pelo seu IP.
+
+        Args:
+            ip (str): Endereço IP do dispositivo.
+
+        Returns:
+            dict: Dispositivo com o IP fornecido, ou None se não for encontrado.
+        """
+        for dispositivo in self.dispositivos:
+            if dispositivo['ip'] == ip:
+                return dispositivo
+        return None

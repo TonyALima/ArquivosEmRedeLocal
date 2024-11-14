@@ -8,6 +8,7 @@ from arquivos_em_rede_local.transferencia import Transferencia
 class InterfaceGrafica:
     def __init__(self, name: str):
         self.descoberta = Descoberta(name)
+        self.descoberta.start_discovery_process()
         self.transferencia = Transferencia(self.solicitar_envio_arquivo)
         self.root = tk.Tk()
         self.root.title("Arquivos em Rede Local")
@@ -51,7 +52,9 @@ class InterfaceGrafica:
         self.update_tree_and_buttons()
 
     def solicitar_envio_arquivo(self, ip, file_name):
-        dispositivo = next((d for d in self.descoberta.get_connected_devices() if d['ip'] == ip), "")
+        dispositivo = self.descoberta.get_device_by_ip(ip)
+        if dispositivo is None:
+            return False
         return messagebox.askyesno("Solicitação de Envio", f"{dispositivo['name']} ({dispositivo['ip']}) deseja enviar {file_name} para você. Deseja aceitar?")
 
     def run(self):
