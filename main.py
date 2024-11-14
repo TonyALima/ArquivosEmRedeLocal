@@ -1,8 +1,11 @@
-from arquivos_em_rede_local import descoberta, transferencia, visualizacao
+from arquivos_em_rede_local.visualizacao import InterfaceGrafica
+import socket
+import getpass
 
 def main():
-    # Lógica principal da aplicação
-    print("Bem-vindo à aplicação!")
+    username = f'{getpass.getuser()}:{socket.gethostname()}'
+    app = InterfaceGrafica(username)
+    app.run()
 
 if __name__ == "__main__":
     main()
