@@ -3,7 +3,17 @@ import threading
 from time import sleep
 
 class Transferencia:
+    """
+    Classe para gerenciar a transferência de arquivos entre dispositivos em uma rede local.
+    """
+
     def __init__(self, get_user_authorization, transfer_port=23009):
+        """
+        Inicializa a classe Transferencia.
+
+        :param get_user_authorization: Função para obter autorização do usuário para receber arquivos.
+        :param transfer_port: Porta utilizada para a transferência de arquivos.
+        """
         self.transfer_port = transfer_port
         self.running_listener = True
         self.listen_to_incoming_requests_thread = threading.Thread(target=self._listen_to_incoming_requests, daemon=True)
@@ -11,11 +21,21 @@ class Transferencia:
         self.get_user_authorization = get_user_authorization
 
     def __del__(self):
+        """
+        Finaliza a classe Transferencia, garantindo que o listener seja encerrado corretamente.
+        """
         self.running_listener = False
         if self.listen_to_incoming_requests_thread.is_alive():
             self.listen_to_incoming_requests_thread.join()
 
     def send(self, file_path, device_ip):
+        """
+        Envia um arquivo para um dispositivo especificado.
+
+        :param file_path: Caminho do arquivo a ser enviado.
+        :param device_ip: Endereço IP do dispositivo de destino.
+        :return: Mensagem indicando o sucesso ou falha da operação.
+        """
         try:
             with open(file_path, 'rb') as file:
                 data = file.read()
@@ -31,6 +51,13 @@ class Transferencia:
                 return "Failed to send file: Authorization denied"
 
     def _request_send_authorization(self, sock: socket.socket, file_path):
+        """
+        Solicita autorização para enviar um arquivo.
+
+        :param sock: Socket de conexão.
+        :param file_path: Caminho do arquivo a ser enviado.
+        :return: True se a autorização for concedida, False caso contrário.
+        """
         file_name = file_path.split('/')[-1]
         message = f"SEND {file_name}"
         sock.sendall(message.encode())
@@ -43,6 +70,9 @@ class Transferencia:
             return False
 
     def _listen_to_incoming_requests(self):
+        """
+        Escuta solicitações de envio de arquivos de outros dispositivos.
+        """
         with socket.create_server(('', self.transfer_port)) as sock:
             sock.settimeout(1)
             while self.running_listener:
@@ -61,6 +91,12 @@ class Transferencia:
                     continue
 
     def _receive_and_save_file(self, conn: socket.socket, file_name):
+        """
+        Recebe e salva um arquivo enviado por outro dispositivo.
+
+        :param conn: Conexão socket.
+        :param file_name: Nome do arquivo a ser salvo.
+        """
         data = b''
         conn.settimeout(1)
         while True:
